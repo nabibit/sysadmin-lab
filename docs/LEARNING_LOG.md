@@ -551,3 +551,102 @@ The code is clean, reusable, and human-readable.
 
 - **Commit:** `feat: system inventory tool – basic info`
 ---
+
+## [2026-06-04] – Day 25: System Inventory Tool – Phase 2 & CLI Routing
+
+### Goal
+
+Upgrade the `system_inventory.py` script from a basic hardware monitor into a scalable, SIEM-ready CLI tool. Fix existing logic bugs in process iteration and implement `argparse` for dynamic JSON and CSV data routing.
+
+### Tasks Completed
+
+* **VirtualBox Shared Folder Troubleshooting:** Resolved `Permission denied` and `Protocol error` roadblocks when accessing the host machine from the Ubuntu VM. Added my user to the `vboxsf` group and manually mounted the shared folder using correct UID/GID mapping and a simplified share name.
+* **Bug Fixes:**
+
+  * Corrected the indentation in `get_disk_info()` to ensure the script iterates through all disk partitions rather than exiting after the first loop.
+  * Completed the `try/except` block inside `get_top_processes()` to properly handle `psutil.NoSuchProcess`, `psutil.AccessDenied`, and `psutil.ZombieProcess` exceptions, preventing the script from crashing during execution.
+* **Argparse Integration:** Added CLI flags to route output formats (`--json`, `--csv`) and control data verbosity (`--limit N`).
+* **Data Structuring:** Implemented `json.dumps()` for automated SIEM ingestion and utilized the `csv` module to structure telemetry into discrete columns.
+
+### Commands Used
+```bash
+**VirtualBox Mount Resolution:**
+
+# Add user to VirtualBox share group
+
+sudo usermod -aG vboxsf $USER
+
+
+# Manually mount the shared folder bypassing protocol errors
+
+sudo mount -t vboxsf -o uid=$USER,gid=$USER sysadmin /mnt/sysadmin
+```
+
+```bash
+**Script Execution & Testing:**
+
+# Default human-readable execution
+
+python3 src/system_inventory.py
+
+# Test CLI limit flag
+
+python3 src/system_inventory.py --limit 3
+
+# Output raw JSON for data pipelines
+
+python3 src/system_inventory.py --json
+'''
+
+### Sample Output
+
+**Human-Readable (Truncated):**
+
+## [[[
+
+## DISK USAGE
+
+/               | ext4     | Total: 24.44 GB   | Used: 46.6%
+
+---
+
+## TOP 3 PROCESSES (by CPU)
+
+PID      | Name                      | CPU %    | Memory %
+1        | systemd                   | 0.0      | 0.7
+2        | kthreadd                  | 0.0      | 0.0
+3        | pool_workqueue_release    | 0.0      | 0.0
+=====================================================
+
+'''
+
+**JSON Output (Truncated):**
+
+
+{
+"system": {
+"hostname": "user-VirtualBox",
+"os_name": "Linux",
+"architecture": "x86_64",
+"memory_percent": 57.9
+},
+"disks": [
+{
+"mountpoint": "/",
+"fstype": "ext4",
+"percent": 46.6
+}
+]
+}
+```
+
+### Reflection
+
+Getting back into the lab environment required overcoming some immediate friction with VirtualBox file permissions, but manually mounting the directory reinforced my understanding of Linux group policies and UID enforcement.
+
+From a coding perspective, Phase 2 transformed the script from a passive script into a highly functional tool. Catching process-level exceptions (`AccessDenied`, `ZombieProcess`) highlighted the chaotic nature of OS scheduling—processes die or change privileges while the script runs, and the code must be resilient enough to handle that. Finally, mapping the output to `--json` was a critical upgrade; in a true Blue Team environment, raw text is useless, but structured JSON can be instantly piped into Splunk, Elastic, or a centralized logging server.
+
+### Evidence
+
+* **Commit:** `enhancement: add disk info, top processes, and CLI options`
+---
