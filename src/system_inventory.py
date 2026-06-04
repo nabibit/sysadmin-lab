@@ -2,11 +2,14 @@
 # Project: sysadmin-lab - System Inventory Tool
 # Purpose: Collect and display system information (OS, CPU, memory)
 # Created: 2026-03-24
+# Updated: 2026-06-04
 # Complexity/Performance: O(1) - uses psutil to query kernel stats efficiently
 
 import platform
 import psutil
 import datetime
+import argparse
+import json
 
 def get_system_info() -> dict:
     """
@@ -63,28 +66,116 @@ def bytes_to_human(bytes_val: float) -> str:
     #Fallback for extremely large data sets (Petabytes)
     return f"{bytes_val:.2f} PB"
 
+def get_disk_info() -> list:
+    """
+    Gather disk partition and usage information.
+    Ignores loop devices and handles permission errors gracefully.
+    """
+    partitions = []
+    for part in psutil.disk_partitions():
+        # Skip loop devices (common in Linux snaps) to keep output clean
+        if part.fstype and 'loop' not in part.device:
+            try:
+                usage = psutil.disk_usage(part.mountpoint)
+                partitions.append({
+                    'device': part.device,
+                    'mountpoint': part.mountpoint,
+                    'fstype': part.fstype,
+                    'total': usage.total,
+                    'used': usage.used,
+                    'free': usage.free,
+                    'percent': usage.percent
+                })
+            except PermissionError:
+                # Some system partitions deny access without admin/root rights
+                continue
+        return partitions
+    
+def get_top_processes(limit: int = 10, sort_by: str = 'cpu') -> list:
+    """
+    Get the top running processes sorted by CPU or memory usage.
+    Handles processes that terminate during the query.
+    """
+    processes = []
+    # process_iter is safer than grabbing all PIDs at once (prevents race conditions)
+    for proc in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent']):
+        try:
+            pinfo = proc.info
+            # Ensure None values are converted to 0.0 for accurate sorting
+            pinfo['cpu_percent'] = pinfo['cpu_percent'] or 0.0
+            pinfo['memory_percent'] = pinfo['memory_percent'] or 0.0
+            processes.append(pinfo)
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
+            
+    # Sort descending based on the requested metric
+    if sort_by == 'memory':
+        processes = sorted(processes, key=lambda p: p['memory_percent'], reverse=True)
+    else:
+        processes = sorted(processes, key=lambda p: p['cpu_percent'], reverse=True)
+        
+    return processes[:limit]
+
 def main():
-    """
-    Main execution block to format and print the system inventory report.
-    """
-    print("=" * 60)
-    print("SYSTEM INVENTORY REPORT")
-    print("=" * 60)
+    """Main execution block configuring CLI arguments and report formatting."""
+    # Add argparse for CLI options
+    parser = argparse.ArgumentParser(description="System Inventory Tool")
+    parser.add_argument('--json', action='store_true', help='Output report in JSON format')
+    parser.add_argument('--csv', action='store_true', help='Output report in CSV format')
+    parser.add_argument('--limit', type=int, default=10, help='Limit the number of top processes shown')
+    args = parser.parse_args()
 
-    info = get_system_info()
+    # Aggregate all data
+    inventory = {
+        'system': get_system_info(),
+        'disks': get_disk_info(),
+        'processes': get_top_processes(limit=args.limit)
+    }
 
-    print(f"Hostname              : {info['hostname']}")
-    print(f"OS                    : {info['os_name']} {info['os_release']}")
-    print(f"Architecture          : {info['architecture']}")
-    print(f"CPU cores (phys)      : {info['cpu_count_physical']}")
-    print(f"CPU cores (logical)   : {info['cpu_count_logical']}")
-    print(f"Memory total          : {bytes_to_human(info['memory_total'])}")
-    print(f"Memory available      : {bytes_to_human(info['memory_available'])}")
-    print(f"Memory used           : {bytes_to_human(info['memory_total'] - info['memory_available'])}")
-    print(f"Memory percent        : {info['memory_percent']}%")
-    print(f"Boot time             : {info['boot_time']}")
-    print("=" * 60)
+    # Handle output routing based on CLI flags
+    if args.json:
+        print(json.dumps(inventory, indent=4))
+        
+    elif args.csv:
+        writer = csv.writer(sys.stdout)
+        writer.writerow(['Category', 'Metric', 'Value'])
+        for key, val in inventory['system'].items():
+            writer.writerow(['System', key, val])
+        for disk in inventory['disks']:
+            writer.writerow(['Disk', disk['mountpoint'], f"{disk['percent']}% used"])
+        for proc in inventory['processes']:
+            writer.writerow(['Process', proc['name'], f"CPU: {proc['cpu_percent']}%"])
+            
+    else:
+        # Default Human-Readable Output
+        print("=" * 60)
+        print("SYSTEM INVENTORY REPORT")
+        print("=" * 60)
 
+        info = inventory['system']
+        print(f"Hostname              : {info['hostname']}")
+        print(f"OS                    : {info['os_name']} {info['os_release']}")
+        print(f"Architecture          : {info['architecture']}")
+        print(f"CPU cores (phys)      : {info['cpu_count_physical']}")
+        print(f"CPU cores (logical)   : {info['cpu_count_logical']}")
+        print(f"Memory total          : {bytes_to_human(info['memory_total'])}")
+        print(f"Memory available      : {bytes_to_human(info['memory_available'])}")
+        print(f"Memory percent        : {info['memory_percent']}%")
+        print(f"Boot time             : {info['boot_time']}")
+        
+        print("\n" + "-" * 60)
+        print("DISK USAGE")
+        print("-" * 60)
+        for disk in inventory['disks']:
+            print(f"{disk['mountpoint']:<15} | {disk['fstype']:<8} | Total: {bytes_to_human(disk['total']):<10} | Used: {disk['percent']}%")
+            
+        print("\n" + "-" * 60)
+        print(f"TOP {args.limit} PROCESSES (by CPU)")
+        print("-" * 60)
+        print(f"{'PID':<8} | {'Name':<25} | {'CPU %':<8} | {'Memory %':<8}")
+        for proc in inventory['processes']:
+            print(f"{proc['pid']:<8} | {proc['name'][:25]:<25} | {proc['cpu_percent']:<8.1f} | {proc['memory_percent']:<8.1f}")
+        print("=" * 60)
     
 if __name__ == "__main__":
     main()
