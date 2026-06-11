@@ -2,7 +2,7 @@
 # Project: sysadmin-lab - System Inventory Tool
 # Purpose: Collect and display system information (OS, CPU, memory)
 # Created: 2026-03-24
-# Updated: 2026-06-04
+# Updated: 2026-06-11
 # Complexity/Performance: O(1) - uses psutil to query kernel stats efficiently
 
 import platform
@@ -116,6 +116,46 @@ def get_top_processes(limit: int = 10, sort_by: str = 'cpu') -> list:
         
     return processes[:limit]
 
+def get_network_stats() -> dict:
+    """Gather network I/O statistics per interface, excluding loopback."""
+    stats = {}
+    counters = psutil.net_io_counters(pernic=True)
+    for iface, data in counters.items():
+        if iface == 'lo':  # Skip local loopback traffic to keep reports clean
+            continue
+        stats[iface] = {
+            'bytes_sent': data.bytes_sent,
+            'bytes_recv': data.bytes_recv,
+            'packets_sent': data.packets_sent,
+            'packets_recv': data.packets_recv,
+            'errin': data.errin,
+            'errout': data.errout,
+        }
+    return stats
+
+def send_alert_email(subject: str, body: str):
+    """
+    Sends an SMTP email alert. 
+    Currently configured to print to console as a mock for Mailtrap/SMTP testing.
+    """
+    print(f"\n[MOCK EMAIL ALERT TRIGGERED]")
+    print(f"Subject: {subject}")
+    print(f"Body:\n{body}")
+    print("[END MOCK EMAIL]\n")
+
+def check_disk_threshold(disks: list, threshold: float):
+    """Check if any disk exceeds the threshold and trigger warnings/alerts."""
+    for disk in disks:
+        if disk['percent'] > threshold:
+            warning_msg = f"CRITICAL: {disk['mountpoint']} is at {disk['percent']}% usage (Threshold: {threshold}%)"
+            print(f"  {warning_msg}")
+            
+            # Trigger the email alert subsystem
+            send_alert_email(
+                subject=f"Disk Usage Alert: {platform.node()}", 
+                body=warning_msg
+            )
+
 def main():
     """Main execution block configuring CLI arguments and report formatting."""
     # Add argparse for CLI options
@@ -123,15 +163,21 @@ def main():
     parser.add_argument('--json', action='store_true', help='Output report in JSON format')
     parser.add_argument('--csv', action='store_true', help='Output report in CSV format')
     parser.add_argument('--limit', type=int, default=10, help='Limit the number of top processes shown')
+    parser.add_argument('--alert-threshold', type=float, default=95.0, help='Disk usage % threshold to trigger alerts (Default: 95)')
     args = parser.parse_args()
 
     # Aggregate all data
     inventory = {
         'system': get_system_info(),
         'disks': get_disk_info(),
-        'processes': get_top_processes(limit=args.limit)
+        'processes': get_top_processes(limit=args.limit),
+        'network': get_network_stats()
     }
 
+    # Run Threshold Checks (only if we aren't piping to raw JSON/CSV)
+    if not args.json and not args.csv:
+        check_disk_threshold(inventory['disks'], args.alert_threshold)
+        
     # Handle output routing based on CLI flags
     if args.json:
         print(json.dumps(inventory, indent=4))
@@ -145,6 +191,8 @@ def main():
             writer.writerow(['Disk', disk['mountpoint'], f"{disk['percent']}% used"])
         for proc in inventory['processes']:
             writer.writerow(['Process', proc['name'], f"CPU: {proc['cpu_percent']}%"])
+        for iface, data in inventory['network'].items():
+             writer.writerow(['Network', iface, f"Sent: {bytes_to_human(data['bytes_sent'])}"])
             
     else:
         # Default Human-Readable Output
@@ -168,7 +216,17 @@ def main():
         print("-" * 60)
         for disk in inventory['disks']:
             print(f"{disk['mountpoint']:<15} | {disk['fstype']:<8} | Total: {bytes_to_human(disk['total']):<10} | Used: {disk['percent']}%")
-            
+
+        print("\n" + "-" * 60)
+        print("NETWORK INTERFACES (Excluding Loopback)")
+        print("-" * 60)
+        for iface, data in inventory['network'].items():
+            print(f"Interface: {iface}")
+            print(f"  Received: {bytes_to_human(data['bytes_recv']):<10} | Sent: {bytes_to_human(data['bytes_sent']):<10}")
+            print(f"  Packets In: {data['packets_recv']:<8} | Packets Out: {data['packets_sent']:<8}")
+            if data['errin'] > 0 or data['errout'] > 0:
+                 print(f" ERRORS - In: {data['errin']}, Out: {data['errout']}")
+        
         print("\n" + "-" * 60)
         print(f"TOP {args.limit} PROCESSES (by CPU)")
         print("-" * 60)
