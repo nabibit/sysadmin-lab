@@ -602,7 +602,7 @@ python3 src/system_inventory.py --json
 
 **Human-Readable (Truncated):**
 
-## [[[
+## ```
 
 ## DISK USAGE
 
@@ -649,4 +649,58 @@ From a coding perspective, Phase 2 transformed the script from a passive script 
 ### Evidence
 
 * **Commit:** `enhancement: add disk info, top processes, and CLI options`
+---
+## [2026-06-11] – Day 26: Network Stats & Disk Alert
+
+### Goal
+
+Extend the system inventory tool to collect network interface statistics and warn when disk usage exceeds a configurable threshold.
+
+### Tasks Completed
+
+- Added `get_network_stats()` – retrieves per-interface bytes sent/received, packets, and errors (skips loopback).
+- Integrated network stats into the human-readable report (new section after memory).
+- Added `--alert-threshold` argument (e.g., `--alert-threshold 80`). The script checks all disk partitions and prints a warning on console if usage exceeds the threshold.
+- Tested by temporarily creating a large file to push disk usage over the threshold – warning appeared as expected.
+- Email alert was considered but deferred; console warning is sufficient for now and can be extended later.
+
+### Commands Used
+
+```
+# Standard report (includes network stats)
+python3 src/system_inventory.py
+
+# Check with alert threshold 50%
+python3 src/system_inventory.py --alert-threshold 50
+```
+
+### Sample Output (Partial)
+
+```
+------------------------------------------------------------
+NETWORK INTERFACES
+------------------------------------------------------------
+enp0s3:
+  bytes sent: 2.45 MB
+  bytes recv: 1.23 MB
+  packets sent: 4567
+  packets recv: 4321
+  errors in: 0
+  errors out: 0
+```
+
+When threshold exceeded:
+
+```bash
+ WARNING: / is at 85.3% usage (threshold 80%)
+```
+
+### Reflection
+
+This turns the passive inventory script into a proactive monitoring tool. Network stats help spot anomalies (e.g., unexpected high traffic on a quiet interface). The disk alert is an early-warning system for low-storage conditions. Future enhancements could include email/SMS alerts and running the script periodically via cron or a systemd timer.
+
+### Evidence
+
+* **Commit:** `feat: add network stats and disk usage alert to inventory`
+
 ---
