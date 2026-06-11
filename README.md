@@ -67,7 +67,7 @@ Located in `src/` (Python scripts that can be run directly or imported as module
 
 | Script | Purpose | Example Usage |
 |--------|---------|---------------|
-| `system_inventory.py` | Gathers system information (hostname, OS, CPU, memory) using `psutil`. | `python src/system_inventory.py` |
+| `system_inventory.py` | Gathers system information (hostname, OS, CPU, memory, disk, top processes, network stats) with CLI options (`--json`, `--csv`, `--output`, `--limit`, `--alert-threshold`). | `python src/system_inventory.py --json --alert-threshold 80` |
 
 **Dependencies:**
 - `psutil` – install with `pip install psutil` (or `pip3 install --user psutil`).
