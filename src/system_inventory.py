@@ -2,7 +2,7 @@
 # Project: sysadmin-lab - System Inventory Tool
 # Purpose: Collect and display system information (OS, CPU, memory)
 # Created: 2026-03-24
-# Updated: 2026-06-11
+# Updated: 2026-06-22 (Day 27 Refactor - Repeat Mode & Stream Routing)
 # Complexity/Performance: O(1) - uses psutil to query kernel stats efficiently
 
 import platform
@@ -10,6 +10,8 @@ import psutil
 import datetime
 import argparse
 import json
+import os
+import time
 
 def get_system_info() -> dict:
     """
@@ -156,6 +158,43 @@ def check_disk_threshold(disks: list, threshold: float):
                 body=warning_msg
             )
 
+def flatten_snapshot_for_csv(timestamp: str, info: dict, disks: list, network: dict) -> dict:
+    """Transforms nested OS dictionaries into a single flat CSV row."""
+    # Find the root disk '/' safely
+    root_disk = next((d for d in disks if d['mountpoint'] == '/'), disks[0] if disks else {})
+    total_sent = sum(d['bytes_sent'] for d in network.values())
+
+    return {
+        'timestamp': timestamp,
+        'hostname': info['hostname'],
+        'cpu_logical_cores': info['cpu_count_logical'],
+        'memory_used_percent': info['memory_percent'],
+        'disk_root_percent': root_disk.get('percent', 0.0),
+        'net_total_sent_mb': round(total_sent / (1024 * 1024), 2)
+    }
+
+def print_report(info: dict, disks: list, network: dict, processes: list, limit: int):
+    """Renders the standard visual dashboard to the console."""
+    print(f"Hostname              : {info['hostname']}")
+    print(f"OS                    : {info['os_name']} {info['os_release']}")
+    print(f"Memory total          : {bytes_to_human(info['memory_total'])}")
+    print(f"Memory available      : {bytes_to_human(info['memory_available'])}")
+    print(f"Memory percent        : {info['memory_percent']}%")
+    
+    print("\n" + "-" * 60 + "\nDISK USAGE\n" + "-" * 60)
+    for d in disks:
+        print(f"{d['mountpoint']:<15} | {d['fstype']:<8} | Total: {bytes_to_human(d['total']):<10} | Used: {d['percent']}%")
+        
+    print("\n" + "-" * 60 + "\nACTIVE NETWORK INTERFACES\n" + "-" * 60)
+    for iface, data in network.items():
+        print(f"Interface: {iface} -> Recv: {bytes_to_human(data['bytes_recv'])} | Sent: {bytes_to_human(data['bytes_sent'])}")
+        
+    print("\n" + "-" * 60 + f"\nTOP {limit} PROCESSES (by CPU)\n" + "-" * 60)
+    print(f"{'PID':<8} | {'Name':<25} | {'CPU %':<8} | {'Memory %':<8}")
+    for p in processes:
+        print(f"{p['pid']:<8} | {p['name'][:25]:<25} | {p['cpu_percent']:<8.1f} | {p['memory_percent']:<8.1f}")
+    print("=" * 60)
+
 def main():
     """Main execution block configuring CLI arguments and report formatting."""
     # Add argparse for CLI options
@@ -164,76 +203,68 @@ def main():
     parser.add_argument('--csv', action='store_true', help='Output report in CSV format')
     parser.add_argument('--limit', type=int, default=10, help='Limit the number of top processes shown')
     parser.add_argument('--alert-threshold', type=float, default=95.0, help='Disk usage % threshold to trigger alerts (Default: 95)')
+    parser.add_argument('--output', type=str, help='Target file path to save CSV or JSON data')
+    parser.add_argument('--repeat', type=int, default=1, help='Number of snapshots to execute')
+    parser.add_argument('--delay', type=int, default=5, help='Seconds to pause between runs')
     args = parser.parse_args()
 
-    # Aggregate all data
-    inventory = {
-        'system': get_system_info(),
-        'disks': get_disk_info(),
-        'processes': get_top_processes(limit=args.limit),
-        'network': get_network_stats()
-    }
+   # Create an empty box to catch JSON snapshots over time
+    json_accumulator = []
 
-    # Run Threshold Checks (only if we aren't piping to raw JSON/CSV)
-    if not args.json and not args.csv:
-        check_disk_threshold(inventory['disks'], args.alert_threshold)
+    # START THE TIME LOOP
+    for iteration in range(1, args.repeat + 1):
+        timestamp = datetime.datetime.now().isoformat()
         
-    # Handle output routing based on CLI flags
+        # Grab live metrics for this exact second
+        info = get_system_info()
+        disks = get_disk_info()
+        network = get_network_stats()
+        processes = get_top_processes(limit=args.limit)
+
+        if not args.json and not args.csv:
+            check_disk_threshold(disks, args.alert_threshold)
+
+        # ROUTE A: JSON Accumulator
+        if args.json:
+            json_accumulator.append({
+                'timestamp': timestamp, 'system': info, 'disks': disks, 'network': network, 'processes': processes
+            })
+
+        # ROUTE B: Flat CSV stream
+        elif args.csv:
+            row = flatten_snapshot_for_csv(timestamp, info, disks, network)
+            header_str = ",".join(row.keys()) + "\n"
+            line_str = ",".join(str(val) for val in row.values()) + "\n"
+
+            if args.output:
+                # Check if file is completely new so we only write headers once
+                needs_header = not os.path.exists(args.output) or os.path.getsize(args.output) == 0
+                with open(args.output, 'a') as f:
+                    if needs_header:
+                        f.write(header_str)
+                    f.write(line_str)
+            else:
+                if iteration == 1:
+                    print(",".join(row.keys()))
+                print(",".join(str(val) for val in row.values()))
+
+        # ROUTE C: Human Console
+        else:
+            print(f"\n{' SNAPSHOT ' + str(iteration) + '/' + str(args.repeat) + ' ':=^60}")
+            print_report(info, disks, network, processes, args.limit)
+
+        # Enforce the delay (skip sleeping on the final loop)
+        if iteration < args.repeat:
+            time.sleep(args.delay)
+
+    # If we were gathering JSON, dump the array to file or console
     if args.json:
-        print(json.dumps(inventory, indent=4))
-        
-    elif args.csv:
-        writer = csv.writer(sys.stdout)
-        writer.writerow(['Category', 'Metric', 'Value'])
-        for key, val in inventory['system'].items():
-            writer.writerow(['System', key, val])
-        for disk in inventory['disks']:
-            writer.writerow(['Disk', disk['mountpoint'], f"{disk['percent']}% used"])
-        for proc in inventory['processes']:
-            writer.writerow(['Process', proc['name'], f"CPU: {proc['cpu_percent']}%"])
-        for iface, data in inventory['network'].items():
-             writer.writerow(['Network', iface, f"Sent: {bytes_to_human(data['bytes_sent'])}"])
-            
-    else:
-        # Default Human-Readable Output
-        print("=" * 60)
-        print("SYSTEM INVENTORY REPORT")
-        print("=" * 60)
-
-        info = inventory['system']
-        print(f"Hostname              : {info['hostname']}")
-        print(f"OS                    : {info['os_name']} {info['os_release']}")
-        print(f"Architecture          : {info['architecture']}")
-        print(f"CPU cores (phys)      : {info['cpu_count_physical']}")
-        print(f"CPU cores (logical)   : {info['cpu_count_logical']}")
-        print(f"Memory total          : {bytes_to_human(info['memory_total'])}")
-        print(f"Memory available      : {bytes_to_human(info['memory_available'])}")
-        print(f"Memory percent        : {info['memory_percent']}%")
-        print(f"Boot time             : {info['boot_time']}")
-        
-        print("\n" + "-" * 60)
-        print("DISK USAGE")
-        print("-" * 60)
-        for disk in inventory['disks']:
-            print(f"{disk['mountpoint']:<15} | {disk['fstype']:<8} | Total: {bytes_to_human(disk['total']):<10} | Used: {disk['percent']}%")
-
-        print("\n" + "-" * 60)
-        print("NETWORK INTERFACES (Excluding Loopback)")
-        print("-" * 60)
-        for iface, data in inventory['network'].items():
-            print(f"Interface: {iface}")
-            print(f"  Received: {bytes_to_human(data['bytes_recv']):<10} | Sent: {bytes_to_human(data['bytes_sent']):<10}")
-            print(f"  Packets In: {data['packets_recv']:<8} | Packets Out: {data['packets_sent']:<8}")
-            if data['errin'] > 0 or data['errout'] > 0:
-                 print(f" ERRORS - In: {data['errin']}, Out: {data['errout']}")
-        
-        print("\n" + "-" * 60)
-        print(f"TOP {args.limit} PROCESSES (by CPU)")
-        print("-" * 60)
-        print(f"{'PID':<8} | {'Name':<25} | {'CPU %':<8} | {'Memory %':<8}")
-        for proc in inventory['processes']:
-            print(f"{proc['pid']:<8} | {proc['name'][:25]:<25} | {proc['cpu_percent']:<8.1f} | {proc['memory_percent']:<8.1f}")
-        print("=" * 60)
+        payload = json.dumps(json_accumulator, indent=4)
+        if args.output:
+            with open(args.output, 'w') as f:
+                f.write(payload)
+        else:
+            print(payload)
     
 if __name__ == "__main__":
     main()
