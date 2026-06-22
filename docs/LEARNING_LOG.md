@@ -704,3 +704,50 @@ This turns the passive inventory script into a proactive monitoring tool. Networ
 * **Commit:** `feat: add network stats and disk usage alert to inventory`
 
 ---
+
+## [2026-06-22] – Day 27: Telemetry Time-Series & Stream Routing
+
+### Goal
+
+Upgrade the static inventory script into a continuous monitoring agent capable of capturing time-series snapshots, streaming flat CSV telemetry to disk, and isolating view logic.
+
+### Tasks Completed
+
+- **The Sampling Subsystem:** Implemented `--repeat N` and `--delay SECONDS` arguments in `argparse` to wrap data collection in an automated time loop.
+- **Stream Routing:** Added the `--output FILE` flag to dynamically pipe generated CSV or JSON payloads directly into persistent disk storage.
+- **Architecture Refactor:** Decoupled the data-gathering logic from the UI by extracting the heavy console print block out of `main()` and isolating it inside a dedicated `print_report()` view helper.
+- **Data Flattening:** Wrote `flatten_snapshot_for_csv()` to map complex, multi-level nested OS objects into a standardized 1D database row.
+- **Buffer Safety:** Added smart CSV header detection (`os.path.getsize`) to ensure the agent only writes column headers if the target file is 0 bytes or newly instantiated.
+
+### Commands Used
+
+```
+# 1. Visual console heartbeat (3 snapshots, 2s interval)
+python3 src/system_inventory.py --repeat 3 --delay 2
+
+# 2. Time-series CSV stream routing to disk (4 snapshots, 1s interval)
+python3 src/system_inventory.py --repeat 4 --delay 1 --csv --output metrics_trend.csv
+
+# 3. Batch SIEM JSON gathering
+python3 src/system_inventory.py --repeat 2 --delay 1 --json
+```
+
+### Sample Output (CSV Telemetry Stream)
+
+```
+timestamp,hostname,cpu_logical_cores,memory_used_percent,disk_root_percent,net_total_sent_mb
+2026-06-22T17:20:08.461337,user-VirtualBox,1,65.4,49.0,2.08
+2026-06-22T17:20:09.525949,user-VirtualBox,1,65.4,49.0,2.08
+2026-06-22T17:20:10.580351,user-VirtualBox,1,65.6,48.9,2.08
+2026-06-22T17:20:11.624029,user-VirtualBox,1,65.3,48.9,2.08
+```
+
+### Reflection
+
+Today marked the definitive transition from writing "scripts" to engineering "agents." Observing live OS scheduling in the terminal—like catching a background package manager spiking the CPU to 53% during pass #2, or watching the RAM micro-fluctuate by 0.2% every second—proved that infrastructure telemetry is a living, breathing stream. Decoupling the view layer made the main loop vastly more readable, and getting the non-blocking file append logic right means this tool can now safely sit as a background daemon scraper in a real production environment.
+
+### Evidence
+
+* **Commit:** `feat: add repeat mode for performance trending`
+
+---
