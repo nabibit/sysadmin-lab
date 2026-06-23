@@ -67,8 +67,13 @@ Located in `src/` (Python scripts that can be run directly or imported as module
 
 | Script | Purpose | Example Usage |
 |--------|---------|---------------|
-| `system_inventory.py` | Gathers system information (hostname, OS, CPU, memory, disk, top processes, network stats) with CLI options (`--json`, `--csv`, `--output`, `--limit`, `--alert-threshold`). | `python src/system_inventory.py --json --alert-threshold 80` |
+| `system_inventory.py` | Gathers point-in-time system info or runs continuous time-series telemetry (OS, CPU, memory, disk, network). Includes CLI routing (`--json`, `--csv`, `--output`, `--repeat`, `--delay`). | `python3 src/system_inventory.py --repeat 60 --delay 1 --csv --output trend.csv` |
+| `trend_report.py` | Ingests telemetry CSVs and compiles a standalone, executive HTML dashboard with Base64-encoded `matplotlib` trend charts and summary statistics. | `python3 src/trend_report.py --input trend.csv --output report.html` |
 
 **Dependencies:**
-- `psutil` – install with `pip install psutil` (or `pip3 install --user psutil`).
+
+- `psutil` – Install via `pip install psutil`.
+- `matplotlib` – Used for headless graph generation in `trend_report.py`.
+  - *Note for modern Linux users (PEP 668 compliance):* Install via OS package manager instead of pip to protect global environments:
+    `sudo apt install python3-matplotlib -y`
 ---
