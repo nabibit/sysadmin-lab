@@ -786,3 +786,50 @@ This script closes the loop on the monitoring pipeline: **Collect → Store → 
 * **Commit:** `feat: add trend analysis and base64 HTML dashboard`
 
 ---
+
+## [2026-06-26] – Day 29: Telemetry Dashboard & OverTheWire Bandit
+
+### Goal
+
+Create a web dashboard for real-time system monitoring using Flask, overcoming local networking security blocks, and initiate foundational cybersecurity wargames (OverTheWire).
+
+### Tasks Completed
+
+- Structured a new `src/dashboard/` directory with a Flask backend (`app.py`) and an HTML/JS frontend (`index.html`).
+- Engineered a REST API endpoint (`/api/stats`) that serves live OS data from the `system_inventory` module as a JSON payload.
+- Designed a minimal, dark-themed "Onyx Ace" UI that polls the API every 5 seconds using the JavaScript Fetch API.
+- **Troubleshooting:** Encountered and bypassed `SSL_ERROR_RX_RECORD_TOO_LONG` caused by Firefox's aggressive HTTPS-Only mode forcing an SSL handshake onto a local HTTP server. Verified the backend health using raw `curl` commands.
+- Established a professional `.gitignore` ruleset to prevent `venv/` and `__pycache__/` pollution in the repository.
+- Successfully connected to OverTheWire wargames via SSH on port `2220` and retrieved the Level 0 flag.
+- Drafted a formal SOC-style incident write-up for Bandit Level 0.
+
+### Commands Used
+
+```
+# Safely create and activate a virtual environment (Ubuntu)
+sudo apt install python3-venv
+python3 -m venv ~/moteur_dashboard
+source ~/moteur_dashboard/bin/activate
+
+# Install dependencies from requirements
+pip install -r requirements.txt
+
+# Start the Flask telemetry server
+python3 src/dashboard/app.py
+
+# Verify API payload bypassing browser SSL interference
+curl http://127.0.0.1:5000/api/stats
+
+# Connect to OverTheWire Bandit Level 0
+ssh bandit0@bandit.labs.overthewire.org -p 2220
+```
+
+### Reflection
+
+Today was a massive leap from writing local scripts to building actual network-facing services. The biggest lesson wasn't writing the Python code, but understanding how modern browsers enforce security protocols (HTTPS) and how to bypass them for local development using `curl`. Seeing my raw Linux kernel metrics visually update on a web page via an API I built is incredibly satisfying. Furthermore, completing the first OverTheWire challenge officially kicks off the offensive security (Red Team) side of my training.
+
+### Evidence
+
+* **Commits:**
+  * `feat: implement telemetry dashboard and Bandit Level 0 writeup`
+---
