@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SysAdmin Telemetry Node</title>
+    <style>
+        :root {
+            --bg-color: #0f1015;
+            --card-bg: #181a20;
+            --text-main: #e2e8f0;
+            --accent-blue: #38bdf8;
+            --border-color: #272a34;
+        }
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .dashboard-container {
+            width: 100%;
+            max-width: 700px;
+        }
+        h1 {
+            color: var(--accent-blue);
+            font-size: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .telemetry-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 24px;
+            margin-top: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px dashed #2d313d;
+        }
+        .metric-row:last-child { border-bottom: none; }
+        .label { color: #94a3b8; }
+        .value { font-weight: bold; color: var(--text-main); }
+        .status-badge {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: #22c55e;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <h1><span class="status-badge"></span>Live Kernel Telemetry</h1>
+        
+        <div class="telemetry-card" id="metrics-panel">
+            <p style="color: #64748b;">Awaiting socket telemetry payload...</p>
+        </div>
+    </div>
+
+    <script>
+        const bytesToGB = (bytes) => (bytes / (1024 ** 3)).toFixed(2);
+
+        async function fetchMetrics() {
+            const panel = document.getElementById('metrics-panel');
+            try {
+                const res = await fetch('/api/stats');
+                const payload = await res.json();
+
+                if (payload.status !== 'success') throw new Error(payload.message);
+                const d = payload.data;
+
+                panel.innerHTML = `
+                    <div class="metric-row"><span class="label">NODE HOSTNAME</span> <span class="value">${d.hostname}</span></div>
+                    <div class="metric-row"><span class="label">OS ARCHITECTURE</span> <span class="value">${d.os_name} (${d.architecture})</span></div>
+                    <div class="metric-row"><span class="label">LOGICAL CORES</span> <span class="value">${d.cpu_count_logical} vCPU</span></div>
+                    <div class="metric-row"><span class="label">PHYSICAL CORES</span> <span class="value">${d.cpu_count_physical} Cores</span></div>
+                    <div class="metric-row"><span class="label">MEMORY TOTAL</span> <span class="value">${bytesToGB(d.memory_total)} GB</span></div>
+                    <div class="metric-row"><span class="label">MEMORY AVAILABLE</span> <span class="value" style="color: var(--accent-blue);">${bytesToGB(d.memory_available)} GB</span></div>
+                    <div class="metric-row"><span class="label">RAM LOAD</span> <span class="value">${d.memory_percent}%</span></div>
+                    <div class="metric-row"><span class="label">SYSTEM BOOT</span> <span class="value">${d.boot_time}</span></div>
+                `;
+            } catch (err) {
+                panel.innerHTML = `<p style="color: #ef4444;">[ERR] Telemetry Pipeline Disconnected: ${err.message}</p>`;
+            }
+        }
+
+        fetchMetrics();
+        setInterval(fetchMetrics, 5000); // Polling API every 5 seconds
+    </script>
+</body>
+</html>
