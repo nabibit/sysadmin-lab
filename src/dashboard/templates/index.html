@@ -3,103 +3,226 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SysAdmin Telemetry Node</title>
+    <title>System Dashboard</title>
     <style>
-        :root {
-            --bg-color: #0f1015;
-            --card-bg: #181a20;
-            --text-main: #e2e8f0;
-            --accent-blue: #38bdf8;
-            --border-color: #272a34;
-        }
-        body {
-            font-family: 'Courier New', Courier, monospace;
-            background-color: var(--bg-color);
-            color: var(--text-main);
+        * {
+            box-sizing: border-box;
             margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            color: #1a1a1a;
             padding: 40px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
         }
-        .dashboard-container {
-            width: 100%;
-            max-width: 700px;
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
         }
+
         h1 {
-            color: var(--accent-blue);
-            font-size: 1.5rem;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 15px;
+            font-size: 28px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 12px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .card {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 20px 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+            transition: box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.10);
+        }
+
+        .card h2 {
+            font-size: 16px;
+            font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 2px;
+            letter-spacing: 0.5px;
+            color: #555;
+            margin-bottom: 14px;
         }
-        .telemetry-card {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
+
+        .card p {
+            font-size: 15px;
+            margin: 6px 0;
+            color: #333;
+        }
+
+        .card p strong {
+            color: #007bff;
+        }
+
+        .stat-value {
+            font-size: 22px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        /* Progress bar container */
+        .progress-container {
+            background: #e9ecef;
             border-radius: 8px;
-            padding: 24px;
-            margin-top: 20px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            height: 22px;
+            width: 100%;
+            overflow: hidden;
+            margin: 8px 0 6px 0;
         }
-        .metric-row {
+
+        .progress-bar {
+            height: 22px;
+            border-radius: 8px;
+            width: 0%;
+            background: #4caf50;
+            transition: width 0.3s ease, background 0.3s ease;
+        }
+
+        .memory-label {
             display: flex;
             justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px dashed #2d313d;
+            font-size: 14px;
+            color: #555;
+            margin-top: 2px;
         }
-        .metric-row:last-child { border-bottom: none; }
-        .label { color: #94a3b8; }
-        .value { font-weight: bold; color: var(--text-main); }
-        .status-badge {
+
+        .badge {
             display: inline-block;
-            width: 8px;
-            height: 8px;
-            background-color: #22c55e;
-            border-radius: 50%;
-            margin-right: 8px;
+            background: #007bff;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 2px 10px;
+            border-radius: 20px;
+            margin-left: 8px;
+        }
+
+        /* Full‑width card (span both columns) */
+        .card-full {
+            grid-column: 1 / -1;
+        }
+
+        @media (max-width: 700px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            body {
+                padding: 20px;
+            }
+        }
+
+        .footer {
+            margin-top: 30px;
+            font-size: 13px;
+            color: #888;
+            text-align: center;
+        }
+
+        .error {
+            color: #dc3545;
+            font-weight: 600;
+        }
+
+        .loading {
+            color: #888;
+            font-style: italic;
         }
     </style>
 </head>
 <body>
+<div class="container">
+    <h1>System Dashboard</h1>
 
-    <div class="dashboard-container">
-        <h1><span class="status-badge"></span>Live Kernel Telemetry</h1>
-        
-        <div class="telemetry-card" id="metrics-panel">
-            <p style="color: #64748b;">Awaiting socket telemetry payload...</p>
+    <div class="grid" id="stats-grid">
+        <div class="card">
+            <h2>Hostname</h2>
+            <p class="stat-value" id="hostname">—</p>
+        </div>
+
+        <div class="card">
+            <h2>Operating System</h2>
+            <p id="os">—</p>
+        </div>
+
+        <div class="card">
+            <h2>CPU Cores</h2>
+            <p id="cpu-cores">—</p>
+        </div>
+
+        <div class="card">
+            <h2>Memory Usage</h2>
+            <div class="progress-container">
+                <div class="progress-bar" id="memory-bar"></div>
+            </div>
+            <div class="memory-label">
+                <span id="memory-used-text">—</span>
+                <span id="memory-total-text">—</span>
+            </div>
+        </div>
+
+        <div class="card card-full">
+            <h2>Boot Time</h2>
+            <p id="boot-time">—</p>
         </div>
     </div>
 
-    <script>
-        const bytesToGB = (bytes) => (bytes / (1024 ** 3)).toFixed(2);
+    <div class="footer">
+        Auto‑updates every 5 seconds &bull; <span id="last-update">—</span>
+    </div>
+</div>
 
-        async function fetchMetrics() {
-            const panel = document.getElementById('metrics-panel');
-            try {
-                const res = await fetch('/api/stats');
-                const payload = await res.json();
+<script>
+    async function loadStats() {
+        try {
+            const response = await fetch('/api/stats');
+            if (!response.ok) throw new Error('Network response was not ok');
+            const data = await response.json();
 
-                if (payload.status !== 'success') throw new Error(payload.message);
-                const d = payload.data;
+            document.getElementById('hostname').textContent = data.hostname || 'N/A';
+            document.getElementById('os').textContent = `${data.os_name || 'N/A'} ${data.os_release || ''}`;
+            document.getElementById('cpu-cores').textContent =
+                `${data.cpu_count_logical || 0} logical / ${data.cpu_count_physical || 0} physical`;
 
-                panel.innerHTML = `
-                    <div class="metric-row"><span class="label">NODE HOSTNAME</span> <span class="value">${d.hostname}</span></div>
-                    <div class="metric-row"><span class="label">OS ARCHITECTURE</span> <span class="value">${d.os_name} (${d.architecture})</span></div>
-                    <div class="metric-row"><span class="label">LOGICAL CORES</span> <span class="value">${d.cpu_count_logical} vCPU</span></div>
-                    <div class="metric-row"><span class="label">PHYSICAL CORES</span> <span class="value">${d.cpu_count_physical} Cores</span></div>
-                    <div class="metric-row"><span class="label">MEMORY TOTAL</span> <span class="value">${bytesToGB(d.memory_total)} GB</span></div>
-                    <div class="metric-row"><span class="label">MEMORY AVAILABLE</span> <span class="value" style="color: var(--accent-blue);">${bytesToGB(d.memory_available)} GB</span></div>
-                    <div class="metric-row"><span class="label">RAM LOAD</span> <span class="value">${d.memory_percent}%</span></div>
-                    <div class="metric-row"><span class="label">SYSTEM BOOT</span> <span class="value">${d.boot_time}</span></div>
-                `;
-            } catch (err) {
-                panel.innerHTML = `<p style="color: #ef4444;">[ERR] Telemetry Pipeline Disconnected: ${err.message}</p>`;
-            }
+            const totalGB = (data.memory_total || 0) / (1024 ** 3);
+            const usedPercent = data.memory_used_percent || 0;
+            const usedGB = (usedPercent / 100) * totalGB;
+
+            const bar = document.getElementById('memory-bar');
+            bar.style.width = usedPercent + '%';
+            bar.style.background = usedPercent > 80 ? '#f44336' : (usedPercent > 60 ? '#ff9800' : '#4caf50');
+
+            document.getElementById('memory-used-text').textContent = `${usedPercent.toFixed(1)}% used (${usedGB.toFixed(1)} GB)`;
+            document.getElementById('memory-total-text').textContent = `total ${totalGB.toFixed(1)} GB`;
+
+            document.getElementById('boot-time').textContent = data.boot_time || 'N/A';
+            document.getElementById('last-update').textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+
+        } catch (error) {
+            document.querySelectorAll('.stat-value, #os, #cpu-cores, #boot-time, #memory-used-text').forEach(el => {
+                el.textContent = 'Error loading data';
+            });
+            console.error('Fetch error:', error);
         }
+    }
 
-        fetchMetrics();
-        setInterval(fetchMetrics, 5000); // Polling API every 5 seconds
-    </script>
+    loadStats();
+    setInterval(loadStats, 5000);
+</script>
 </body>
 </html>
