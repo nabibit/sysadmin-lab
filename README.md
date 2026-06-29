@@ -69,7 +69,7 @@ Located in `src/` (Python scripts that can be run directly or imported as module
 |--------|---------|---------------|
 | `system_inventory.py` | Gathers point-in-time system info or runs continuous time-series telemetry (OS, CPU, memory, disk, network). Includes CLI routing (`--json`, `--csv`, `--output`, `--repeat`, `--delay`). | `python3 src/system_inventory.py --repeat 60 --delay 1 --csv --output trend.csv` |
 | `trend_report.py` | Ingests telemetry CSVs and compiles a standalone, executive HTML dashboard with Base64-encoded `matplotlib` trend charts and summary statistics. | `python3 src/trend_report.py --input trend.csv --output report.html` |
-| `dashboard/app.py` | Lightweight Flask web interface exposing live OS metrics via a REST API (`/api/stats`). Includes a dark-themed telemetry frontend. | `python3 src/dashboard/app.py` then open `http://127.0.0.1:5000` |
+| `dashboard/app.py` | Modernised Flask web interface exposing live OS metrics via REST API (`/api/stats`). Features a responsive, two-column grid UI with a dynamic colour-changing progress bar for RAM utilisation. | `python3 run_dashboard.py` then open `http://127.0.0.1:5000` |
 
 **Dependencies:**
 
@@ -79,3 +79,63 @@ Located in `src/` (Python scripts that can be run directly or imported as module
     `sudo apt install python3-matplotlib -y`
 - `Flask` – Used for the telemetry web dashboard (install via `pip install flask`).
 ---
+
+## [2026-06-29] – Day 30: Dashboard UI & Bandit Level 1
+
+### Goal
+
+Enhance the Flask dashboard with a modern UI, grid layout, and dynamic progress bar. Complete Bandit Level 1.
+
+---
+
+### Tasks Completed
+
+- Updated the `/api/stats` endpoint in `app.py` to calculate `memory_used_percent` using `psutil`.
+- Redesigned `index.html` with:
+  - Responsive two-column grid layout.
+  - Memory usage progress bar with dynamic colouring:
+    - Green: under 60%
+    - Orange: over 60%
+    - Red: over 80%
+  - Automatic refresh every five seconds using `setInterval()`.
+- Tested the dashboard on `http://127.0.0.1:5000` and verified live updates from the API.
+- Connected to Bandit Level 1 over SSH and learned how to read a file named `-` using:
+  - `cat ./-`
+- Wrote a formal Bandit Level 1 walkthrough.
+
+---
+
+### Commands Used
+
+```
+# Install dependencies
+pip install flask psutil
+
+# Launch dashboard
+python3 run_dashboard.py
+
+# Connect to Bandit Level 1
+ssh bandit1@bandit.labs.overthewire.org -p 2220
+
+# List files
+ls -la
+
+# Read file named "-"
+cat ./-
+```
+
+---
+
+### Reflection
+
+Today's work highlighted the difference between simply making code run and designing software properly.
+
+Completing Bandit Level 1 also reinforced how Unix interprets `-` as standard input and why relative paths such as `./-` are required when filenames would otherwise be ambiguous.
+
+---
+
+### Evidence
+
+- **Commits:**
+  - `feat: display basic system stats with progress bar`
+  - `docs: add Bandit Level 1 write-up`
