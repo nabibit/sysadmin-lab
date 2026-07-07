@@ -2,7 +2,7 @@
 # Project: sysadmin-lab – System Dashboard
 # Purpose: Provide a web interface for system monitoring.
 # Created: 2026-06-26
-# Updated: 2026-06-30 (added CPU/memory chart telemetry and 1s interval polling)
+# Updated: 2026-07-07 (added CPU/memory chart telemetry and 1s interval polling)
 
 import sys
 import os

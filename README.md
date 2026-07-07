@@ -69,7 +69,7 @@ Located in `src/` (Python scripts that can be run directly or imported as module
 |--------|---------|---------------|
 | `system_inventory.py` | Gathers point-in-time system info or runs continuous time-series telemetry (OS, CPU, memory, disk, network). Includes CLI routing (`--json`, `--csv`, `--output`, `--repeat`, `--delay`). | `python3 src/system_inventory.py --repeat 60 --delay 1 --csv --output trend.csv` |
 | `trend_report.py` | Ingests telemetry CSVs and compiles a standalone, executive HTML dashboard with Base64-encoded `matplotlib` trend charts and summary statistics. | `python3 src/trend_report.py --input trend.csv --output report.html` |
-| `dashboard/app.py` | Modernised Flask web interface exposing live OS metrics via REST API (`/api/stats`). Features a responsive, two-column grid UI with a dynamic colour-changing progress bar for RAM utilisation. | `python3 run_dashboard.py` then open `http://127.0.0.1:5000` |
+| `dashboard/app.py` | Modernised Flask web interface exposing live OS metrics via REST API (`/api/stats`). Features a responsive grid UI with a dynamic colour-changing RAM progress bar and real-time Chart.js rolling line charts for CPU and Memory history. | `python3 run_dashboard.py` then open `http://127.0.0.1:5000` |
 
 **Dependencies:**
 

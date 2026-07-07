@@ -833,3 +833,47 @@ Today was a massive leap from writing local scripts to building actual network-f
 * **Commits:**
   * `feat: implement telemetry dashboard and Bandit Level 0 writeup`
 ---
+
+## [2026-07-07] – Day 31: Real-Time Charts & Bandit Level 2
+
+### Goal
+
+Add dynamic line charts for CPU and memory usage using Chart.js to visualize live telemetry over time. Complete OverTheWire Bandit Level 2.
+
+### Tasks Completed
+
+- Integrated the Chart.js library via CDN into the frontend dashboard (`index.html`).
+- Updated the `/api/stats` endpoint in `app.py` to calculate real-time CPU utilization using `psutil.cpu_percent(interval=1)`, avoiding meaningless instantaneous 0% readings.
+- Added standard project versioning headers (`Created`/`Updated` timestamps) across modified scripts to maintain strict documentation standards.
+- Injected two canvas elements into `index.html` to house the CPU and RAM visualization charts within the responsive grid layout.
+- Engineered a JavaScript rolling-window array engine (`MAX_POINTS = 20`) that shifts out legacy timestamps as new telemetry arrives every 5 seconds, preventing client-side memory leaks.
+- Verified DOM rendering, API polling, and chart responsiveness against local port 5000.
+- Connected to OverTheWire Bandit Level 2 via SSH; navigated bash word-splitting rules by quoting filenames with spaces (`cat "spaces in this filename"`).
+- Published formal SOC-style incident write-up for Bandit Level 2.
+
+### Commands Used
+
+```
+# Execute local test server
+python3 run_dashboard.py
+
+# OverTheWire Level 2 execution
+ssh bandit2@bandit.labs.overthewire.org -p 2220
+ls -la
+cat "spaces in this filename"
+
+# Alternative method verified using escape characters
+cat "./--spaces in this filename--"
+```
+
+### Reflection
+
+Adding Chart.js transformed the dashboard from a static snapshot tool into an active observability monitor. Implementing the rolling data window in JavaScript (`shift()` and `push()`) was a great practical lesson in managing memory footprint on the client side—without capping the array at 20 points, a long-running dashboard tab would eventually cause browser performance degradation. On the Linux side, Bandit Level 2 reinforced the mechanics of bash argument parsing and why robust system administration scripts must always quote variable expansions and file paths.
+
+### Evidence
+
+* **Commits:**
+  * `feat: add real-time CPU and memory charts`
+  * `docs: add bandit level 2 writeup`
+
+---
