@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>System Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -180,6 +181,17 @@
             <h2>Boot Time</h2>
             <p id="boot-time">—</p>
         </div>
+
+        <div class="grid" style="margin-top: 20px;">
+        <div class="card">
+            <h2> CPU Usage (%)</h2>
+            <canvas id="cpuChart" height="150"></canvas>
+        </div>
+        <div class="card">
+            <h2> Memory Usage (%)</h2>
+            <canvas id="memChart" height="150"></canvas>
+        </div>
+    </div>
     </div>
 
     <div class="footer">
@@ -188,41 +200,128 @@
 </div>
 
 <script>
+    // Project: sysadmin-lab – Frontend Telemetry Logic
+    // Updated: 2026-07-07 (added Chart.js rolling history visualizers)
+
+    const MAX_POINTS = 20; // Maintain a rolling window of the last 20 data points
+
+    // Initialize CPU Chart
+    const cpuCtx = document.getElementById('cpuChart').getContext('2d');
+    const cpuChart = new Chart(cpuCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'CPU %',
+                data: [],
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                tension: 0.3,
+                fill: true,
+                pointRadius: 2,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            animation: { duration: 200 },
+            scales: {
+                y: { min: 0, max: 100, title: { display: true, text: 'Percent (%)' } },
+                x: { title: { display: true, text: 'Time' } }
+            },
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    // Initialize Memory Chart
+    const memCtx = document.getElementById('memChart').getContext('2d');
+    const memChart = new Chart(memCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Memory %',
+                data: [],
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                tension: 0.3,
+                fill: true,
+                pointRadius: 2,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            animation: { duration: 200 },
+            scales: {
+                y: { min: 0, max: 100, title: { display: true, text: 'Percent (%)' } },
+                x: { title: { display: true, text: 'Time' } }
+            },
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    /**
+     * Helper: Pushes new data to a chart and removes the oldest point if over MAX_POINTS.
+     */
+    function addData(chart, label, value) {
+        if (chart.data.labels.length >= MAX_POINTS) {
+            chart.data.labels.shift();
+            chart.data.datasets[0].data.shift();
+        }
+        chart.data.labels.push(label);
+        chart.data.datasets[0].data.push(value);
+        chart.update();
+    }
+
+    /**
+     * Polling Engine: Fetches stats from backend and updates DOM + Charts.
+     */
     async function loadStats() {
         try {
             const response = await fetch('/api/stats');
             if (!response.ok) throw new Error('Network response was not ok');
             const data = await response.json();
 
+            // Update DOM static cards
             document.getElementById('hostname').textContent = data.hostname || 'N/A';
             document.getElementById('os').textContent = `${data.os_name || 'N/A'} ${data.os_release || ''}`;
             document.getElementById('cpu-cores').textContent =
                 `${data.cpu_count_logical || 0} logical / ${data.cpu_count_physical || 0} physical`;
 
+            // Calculate RAM usage
             const totalGB = (data.memory_total || 0) / (1024 ** 3);
             const usedPercent = data.memory_used_percent || 0;
             const usedGB = (usedPercent / 100) * totalGB;
 
+            // Update RAM Progress Bar
             const bar = document.getElementById('memory-bar');
             bar.style.width = usedPercent + '%';
             bar.style.background = usedPercent > 80 ? '#f44336' : (usedPercent > 60 ? '#ff9800' : '#4caf50');
-
             document.getElementById('memory-used-text').textContent = `${usedPercent.toFixed(1)}% used (${usedGB.toFixed(1)} GB)`;
             document.getElementById('memory-total-text').textContent = `total ${totalGB.toFixed(1)} GB`;
 
+            // Update Boot Time & Timestamp
             document.getElementById('boot-time').textContent = data.boot_time || 'N/A';
-            document.getElementById('last-update').textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+            const now = new Date().toLocaleTimeString();
+            document.getElementById('last-update').textContent = `Last updated: ${now}`;
+
+            // Feed new telemetry into Chart.js visualizers
+            addData(cpuChart, now, data.cpu_percent || 0);
+            addData(memChart, now, data.memory_used_percent || 0);
 
         } catch (error) {
             document.querySelectorAll('.stat-value, #os, #cpu-cores, #boot-time, #memory-used-text').forEach(el => {
-                el.textContent = 'Error loading data';
+                el.textContent = ' Error loading data';
             });
             console.error('Fetch error:', error);
         }
     }
 
+    // Execute immediately on load, then poll every 5 seconds
     loadStats();
     setInterval(loadStats, 5000);
 </script>
+
 </body>
 </html>
