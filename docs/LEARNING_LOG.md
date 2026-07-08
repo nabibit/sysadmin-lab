@@ -833,6 +833,66 @@ Today was a massive leap from writing local scripts to building actual network-f
 * **Commits:**
   * `feat: implement telemetry dashboard and Bandit Level 0 writeup`
 ---
+## [2026-06-29] – Day 30: Dashboard UI & Bandit Level 1
+
+### Goal
+
+Enhance the Flask dashboard with a modern UI, grid layout, and dynamic progress bar. Complete Bandit Level 1.
+
+---
+
+### Tasks Completed
+
+- Updated the `/api/stats` endpoint in `app.py` to calculate `memory_used_percent` using `psutil`.
+- Redesigned `index.html` with:
+  - Responsive two-column grid layout.
+  - Memory usage progress bar with dynamic colouring:
+    - Green: under 60%
+    - Orange: over 60%
+    - Red: over 80%
+  - Automatic refresh every five seconds using `setInterval()`.
+- Tested the dashboard on `http://127.0.0.1:5000` and verified live updates from the API.
+- Connected to Bandit Level 1 over SSH and learned how to read a file named `-` using:
+  - `cat ./-`
+- Wrote a formal Bandit Level 1 walkthrough.
+
+---
+
+### Commands Used
+
+```
+# Install dependencies
+pip install flask psutil
+
+# Launch dashboard
+python3 run_dashboard.py
+
+# Connect to Bandit Level 1
+ssh bandit1@bandit.labs.overthewire.org -p 2220
+
+# List files
+ls -la
+
+# Read file named "-"
+cat ./-
+```
+
+---
+
+### Reflection
+
+Today's work highlighted the difference between simply making code run and designing software properly.
+
+Completing Bandit Level 1 also reinforced how Unix interprets `-` as standard input and why relative paths such as `./-` are required when filenames would otherwise be ambiguous.
+
+---
+
+### Evidence
+
+- **Commits:**
+  - `feat: display basic system stats with progress bar`
+  - `docs: add Bandit Level 1 write-up`
+---
 
 ## [2026-07-07] – Day 31: Real-Time Charts & Bandit Level 2
 
@@ -875,5 +935,49 @@ Adding Chart.js transformed the dashboard from a static snapshot tool into an ac
 * **Commits:**
   * `feat: add real-time CPU and memory charts`
   * `docs: add bandit level 2 writeup`
+
+---
+
+
+## [2026-07-08] – Day 32: Disk & Network Telemetry, Bandit Level 3
+
+### Goal
+
+Extend the Flask dashboard to monitor storage partition utilization and active IPv4 network interfaces. Complete OverTheWire Bandit Level 3.
+
+### Tasks Completed
+
+- Updated `/api/stats` in `app.py` to iterate over system disk partitions using `psutil.disk_partitions()`.
+- Added logic to ignore loopback storage mounts (`loop`) and handle `PermissionError` gracefully on restricted system mounts.
+- Integrated `psutil.net_if_addrs()` with `socket.AF_INET` filtering to isolate active IPv4 network interface allocations while excluding the loopback interface (`lo`).
+- Added standard project versioning headers (`Created`/`Updated` timestamps) across modified files.
+- Injected dedicated DOM cards for Disk Usage and Network Interfaces into `index.html`.
+- Implemented responsive JavaScript progress bars that dynamically adjust colour based on storage utilization thresholds (<60% green, >60% orange, >80% red).
+- Verified API polling and DOM manipulation against the local test server on port 5000 (confirmed disk threshold warnings on `/dev/sr0` and `/`).
+- Connected to OverTheWire Bandit Level 3 via SSH, navigated the directory structure, and used `ls -la` to reveal the hidden file `...Hiding-From-You`.
+- Published a formal SOC-style incident write-up for Bandit Level 3.
+
+### Commands Used
+
+```
+# Execute local test server
+python3 run_dashboard.py
+
+# OverTheWire Level 3 execution
+ssh bandit3@bandit.labs.overthewire.org -p 2220
+cd inhere
+ls -la
+cat ...Hiding-From-You
+```
+
+### Reflection
+
+Expanding the dashboard to monitor disk usage and network interfaces transformed it into a more practical systems administration tool. Handling `PermissionError` while iterating over disk partitions reinforced that some system mounts remain inaccessible even to the current user and must be handled gracefully. On the security side, Bandit Level 3 highlighted the importance of the `-a` option with `ls`; hidden files are commonly overlooked during manual inspections, making thorough enumeration an essential habit.
+
+### Evidence
+
+* **Commits:**
+  * `feat: add disk usage progress bars and IPv4 network stats to dashboard`
+  * `docs: add bandit level 3 writeup`
 
 ---
