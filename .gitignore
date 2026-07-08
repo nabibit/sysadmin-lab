@@ -208,3 +208,6 @@ __marimo__/
 
 # Ignore all generated CSV reports
 *.csv
+
+# Ignore all generated HTML reports in src/
+src/*.html
