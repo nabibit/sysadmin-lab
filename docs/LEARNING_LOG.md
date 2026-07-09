@@ -977,7 +977,47 @@ Expanding the dashboard to monitor disk usage and network interfaces transformed
 ### Evidence
 
 * **Commits:**
-  * `feat: add disk usage progress bars and IPv4 network stats to dashboard`
+  * `feat: add disk and network stats to dashboard`
   * `docs: add bandit level 3 writeup`
 
+---
+## [2026-07-09] – Day 33: Top Processes Monitoring & Bandit Level 4
+
+### Goal
+Extend the Flask telemetry dashboard with a live Top CPU Processes monitor to improve observability during performance investigations. Complete OverTheWire Bandit Level 4.
+
+### Tasks Completed
+- Added a new `/api/processes` REST endpoint to expose live process information as JSON.
+- Used `psutil.process_iter()` to enumerate running processes while safely handling `NoSuchProcess`, `AccessDenied`, and `ZombieProcess` exceptions.
+- Sorted running processes by CPU utilization and returned the top 10 entries.
+- Added a responsive "Top Processes" table to the dashboard frontend displaying:
+  - PID
+  - Process Name
+  - CPU Usage
+  - Memory Usage
+- Implemented asynchronous JavaScript polling to refresh process information independently from the hardware telemetry.
+- Added a Pause/Resume button allowing the operator to temporarily stop automatic dashboard refreshes while inspecting live data.
+- Verified dashboard behaviour against the Ubuntu VM, confirming live CPU spikes matched the processes consuming resources.
+- Connected to OverTheWire Bandit Level 4 and identified the only human-readable file using the Linux `file` utility.
+- Documented the complete investigation inside the Bandit Level 4 write-up.
+
+### Commands Used
+
+```bash
+# Start dashboard
+python3 run_dashboard.py
+```
+
+### Reflection
+
+Today's improvements transformed the dashboard from a hardware monitoring page into a practical troubleshooting tool. CPU graphs immediately become actionable when paired with a live process table because resource spikes can be traced back to the exact running process. Adding the pause/resume functionality also improved usability by allowing telemetry to be frozen during investigations without stopping the backend server.
+
+Bandit Level 4 reinforced another essential Linux administration concept: filenames cannot be trusted. Instead of relying on names or extensions, the `file` utility inspects the actual file contents, making it an indispensable command for system administration, incident response, and digital forensics.
+
+### Evidence
+
+**Commits:**
+
+- `feat: add top processes view`
+- `docs(ctf): add bandit level 4 writeup`
 ---
