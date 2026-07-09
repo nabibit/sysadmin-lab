@@ -2,7 +2,7 @@
 # Project: sysadmin-lab – System Dashboard
 # Purpose: Provide a web interface for system monitoring.
 # Created: 2026-06-26
-# Updated: 2026-07-08 (added disk partition and IPv4 network telemetry)
+# Updated: 2026-07-09 (added top 10 CPU process monitoring endpoint)
 
 import sys
 import os
@@ -60,6 +60,25 @@ def stats():
         info['network'] = net
 
         return jsonify(info), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/processes')
+def processes():
+    """Return the top 10 processes sorted by CPU utilization descending."""
+    try:
+        procs = []
+        # Iterate over all running processes, fetching only required attributes
+        for p in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent']):
+            try:
+                procs.append(p.info)
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                # Ignore processes that terminate or deny access during iteration
+                continue
+        
+        # Sort by CPU percentage descending and slice the top 10
+        procs_sorted = sorted(procs, key=lambda x: x.get('cpu_percent', 0), reverse=True)[:10]
+        return jsonify(procs_sorted), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

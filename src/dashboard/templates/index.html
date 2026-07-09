@@ -144,6 +144,27 @@
             color: #888;
             font-style: italic;
         }
+
+        /* Button styles for pause/resume telemetry */
+        .btn {
+            background: #007bff;
+            color: #fff;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .btn-paused {
+            background: #6c757d;
+        }
+        .btn-paused:hover {
+            background: #5a6268;
+        }
     </style>
 </head>
 <body>
@@ -211,6 +232,29 @@
     <div class="footer">
         Auto‑updates every 5 seconds &bull; <span id="last-update">—</span>
     </div>
+
+    <div class="card card-full">
+            <h2>Top Processes by CPU</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <span id="process-update-time" style="font-size: 13px; color: #888;">Last updated: —</span>
+                <button id="toggle-refresh" class="btn">Pause</button>
+            </div>
+            <div id="process-table-container" style="overflow-x: auto;">
+                <table id="process-table" style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                    <thead>
+                        <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                            <th style="padding: 8px; text-align: left;">PID</th>
+                            <th style="padding: 8px; text-align: left;">Name</th>
+                            <th style="padding: 8px; text-align: right;">CPU %</th>
+                            <th style="padding: 8px; text-align: right;">Memory %</th>
+                        </tr>
+                    </thead>
+                    <tbody id="process-tbody">
+                        <tr><td colspan="4" style="padding: 20px; text-align: center; color: #888;">Loading processes...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
 </div>
 
 <script>
@@ -369,9 +413,77 @@
         }
     }
 
-    // Execute immediately on load, then poll every 5 seconds
-    loadStats();
-    setInterval(loadStats, 5000);
+    // Process Monitoring & Telemetry Toggle Logic
+    let refreshInterval = null;
+    let isAutoRefresh = true;
+
+    /**
+     * Fetch top 10 CPU processes from backend and render inside the DOM table.
+     */
+    async function loadProcesses() {
+        try {
+            const response = await fetch('/api/processes');
+            if (!response.ok) throw new Error('Failed to fetch processes');
+            const processes = await response.json();
+
+            const tbody = document.getElementById('process-tbody');
+            if (!processes || processes.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="padding:20px; text-align:center; color:#888;">No processes running</td></tr>';
+                return;
+            }
+
+            let rows = '';
+            processes.forEach(p => {
+                const cpu = p.cpu_percent || 0;
+                const mem = p.memory_percent || 0;
+                rows += `<tr style="border-bottom: 1px solid #e9ecef;">
+                    <td style="padding: 6px 8px;">${p.pid}</td>
+                    <td style="padding: 6px 8px;"><strong>${p.name || 'unknown'}</strong></td>
+                    <td style="padding: 6px 8px; text-align: right;">${cpu.toFixed(1)}</td>
+                    <td style="padding: 6px 8px; text-align: right;">${mem.toFixed(1)}</td>
+                </tr>`;
+            });
+            tbody.innerHTML = rows;
+            document.getElementById('process-update-time').textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+
+        } catch (error) {
+            document.getElementById('process-tbody').innerHTML = `<tr><td colspan="4" style="padding:20px; text-align:center; color:red;">⚠️ Error loading processes</td></tr>`;
+            console.error('Process fetch error:', error);
+        }
+    }
+
+    /**
+     * Toggles the asynchronous telemetry polling loop on/off.
+     */
+    function toggleRefresh() {
+        const btn = document.getElementById('toggle-refresh');
+        if (isAutoRefresh) {
+            clearInterval(refreshInterval);
+            refreshInterval = null;
+            btn.textContent = '▶️ Resume';
+            btn.classList.add('btn-paused');
+            isAutoRefresh = false;
+        } else {
+            refreshAll(); // Immediate fetch on resume
+            refreshInterval = setInterval(refreshAll, 5000);
+            btn.textContent = '⏸️ Pause';
+            btn.classList.remove('btn-paused');
+            isAutoRefresh = true;
+        }
+    }
+
+    /**
+     * Combined Execution Engine: Updates both general OS telemetry and process table.
+     */
+    function refreshAll() {
+        loadStats();
+        loadProcesses();
+    }
+
+    // Initialize application telemetry loop
+    refreshAll();
+    refreshInterval = setInterval(refreshAll, 5000);
+    document.getElementById('toggle-refresh').addEventListener('click', toggleRefresh);
 </script>
 
 </body>
