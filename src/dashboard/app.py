@@ -2,7 +2,7 @@
 # Project: sysadmin-lab – System Dashboard
 # Purpose: Provide a web interface for system monitoring.
 # Created: 2026-06-26
-# Updated: 2026-07-09 (added top 10 CPU process monitoring endpoint)
+# Updated: 2026-07-15 (added threshold alerts and notification engine)
 
 import sys
 import os
@@ -59,6 +59,50 @@ def stats():
                 net[iface] = ipv4_addrs
         info['network'] = net
 
+        # Alerts Engine
+        alerts = []
+        
+        # Check disk usage thresholds
+        if info.get('disks'):
+            for d in info['disks']:
+                if d['used_percent'] > 85:
+                    alerts.append({
+                        'type': 'critical',
+                        'message': f"Disk {d['device']} ({d['mount']}) at {d['used_percent']:.1f}% usage"
+                    })
+                elif d['used_percent'] > 70:
+                    alerts.append({
+                        'type': 'warning',
+                        'message': f"Disk {d['device']} ({d['mount']}) at {d['used_percent']:.1f}% usage"
+                    })
+        
+        # Check CPU usage thresholds
+        cpu = info.get('cpu_percent', 0)
+        if cpu > 80:
+            alerts.append({
+                'type': 'critical',
+                'message': f"CPU at {cpu:.1f}% usage"
+            })
+        elif cpu > 70:
+            alerts.append({
+                'type': 'warning',
+                'message': f"CPU at {cpu:.1f}% usage"
+            })
+        
+        # Check Memory usage thresholds
+        mem = info.get('memory_used_percent', 0)
+        if mem > 90:
+            alerts.append({
+                'type': 'critical',
+                'message': f" Memory at {mem:.1f}% usage"
+            })
+        elif mem > 80:
+            alerts.append({
+                'type': 'warning',
+                'message': f"⚡ Memory at {mem:.1f}% usage"
+            })
+        
+        info['alerts'] = alerts
         return jsonify(info), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500

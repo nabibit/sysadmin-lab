@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>System Dashboard</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖥️</text></svg>">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * {
@@ -168,6 +169,11 @@
     </style>
 </head>
 <body>
+<!-- Alert Banner -->
+<div id="alert-banner" style="display: none; padding: 12px 20px; margin-bottom: 20px; border-radius: 8px; font-weight: 500; background: #ffc107; color: #333; border-left: 5px solid #ff9800; display: flex; justify-content: space-between; align-items: center;">
+    <span id="alert-text">Alert: System is under high load!</span>
+    <button id="silence-alerts" style="background: transparent; border: 1px solid #333; border-radius: 20px; padding: 4px 14px; cursor: pointer; font-size: 13px;">Silence for 1 min</button>
+</div>
 <div class="container">
     <h1>System Dashboard</h1>
 
@@ -229,10 +235,6 @@
     </div>
     </div>
 
-    <div class="footer">
-        Auto‑updates every 5 seconds &bull; <span id="last-update">—</span>
-    </div>
-
     <div class="card card-full">
             <h2>Top Processes by CPU</h2>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -255,6 +257,11 @@
                 </table>
             </div>
         </div>
+
+    <footer style="text-align: center; margin-top: 30px; padding: 15px 0; color: #888; font-size: 13px; border-top: 1px solid #e9ecef;">
+        <p>System Dashboard &bull; Built with Flask &amp; Chart.js &bull; Auto‑updates every 5 seconds</p>
+        <p style="margin-top: 4px; font-size: 12px;">Monitoring tool for <strong>sysadmin-lab</strong> &bull; <span id="footer-update">Last refresh: —</span></p>
+    </footer>
 </div>
 
 <script>
@@ -338,6 +345,31 @@
             if (!response.ok) throw new Error('Network response was not ok');
             const data = await response.json();
 
+            // Alerts Engine
+            const alertBanner = document.getElementById('alert-banner');
+            const alertText = document.getElementById('alert-text');
+            const isSilenced = sessionStorage.getItem('alertsSilenced') === 'true';
+            const silenceExpiry = sessionStorage.getItem('alertsSilencedUntil');
+
+            if (isSilenced && silenceExpiry && Date.now() < parseInt(silenceExpiry)) {
+                alertBanner.style.display = 'none';
+            } else if (data.alerts && data.alerts.length > 0) {
+                const messages = data.alerts.map(a => a.message).join(' | ');
+                alertText.textContent = `🚨 ${messages}`;
+
+                const hasCritical = data.alerts.some(a => a.type === 'critical');
+                alertBanner.style.background = hasCritical ? '#f44336' : '#ffc107';
+                alertBanner.style.color = hasCritical ? '#fff' : '#333';
+                alertBanner.style.borderLeftColor = hasCritical ? '#d32f2f' : '#ff9800';
+                alertBanner.style.display = 'flex';
+                
+                // Adjust button border color based on contrast
+                document.getElementById('silence-alerts').style.borderColor = hasCritical ? '#fff' : '#333';
+                document.getElementById('silence-alerts').style.color = hasCritical ? '#fff' : '#333';
+            } else {
+                alertBanner.style.display = 'none';
+            }
+
             // Update DOM static cards
             document.getElementById('hostname').textContent = data.hostname || 'N/A';
             document.getElementById('os').textContent = `${data.os_name || 'N/A'} ${data.os_release || ''}`;
@@ -359,8 +391,7 @@
             // Update Boot Time & Timestamp
             document.getElementById('boot-time').textContent = data.boot_time || 'N/A';
             const now = new Date().toLocaleTimeString();
-            document.getElementById('last-update').textContent = `Last updated: ${now}`;
-
+            
             // Feed new telemetry into Chart.js visualizers
             addData(cpuChart, now, data.cpu_percent || 0);
             addData(memChart, now, data.memory_used_percent || 0);
@@ -405,6 +436,9 @@
             } else {
                 netDiv.innerHTML = `<p class="error">No network interfaces found.</p>`;
             }
+
+            // Footer update
+            document.getElementById('footer-update').textContent = `Last refresh: ${new Date().toLocaleTimeString()}`;
         } catch (error) {
             document.querySelectorAll('.stat-value, #os, #cpu-cores, #boot-time, #memory-used-text, #disk-info, #network-info').forEach(el => {
                 el.textContent = 'Error loading data';
@@ -484,6 +518,24 @@
     refreshAll();
     refreshInterval = setInterval(refreshAll, 5000);
     document.getElementById('toggle-refresh').addEventListener('click', toggleRefresh);
+
+    // Alert Silence Logic
+    document.getElementById('silence-alerts').addEventListener('click', function() {
+        const expiry = Date.now() + 60000; // 1 minute from now
+        sessionStorage.setItem('alertsSilenced', 'true');
+        sessionStorage.setItem('alertsSilencedUntil', expiry);
+        document.getElementById('alert-banner').style.display = 'none';
+        console.log('Alerts silenced for 1 minute');
+    });
+
+    window.addEventListener('load', function() {
+        const expiry = sessionStorage.getItem('alertsSilencedUntil');
+        if (expiry && Date.now() > parseInt(expiry)) {
+            sessionStorage.removeItem('alertsSilenced');
+            sessionStorage.removeItem('alertsSilencedUntil');
+        }
+    });
+
 </script>
 
 </body>
