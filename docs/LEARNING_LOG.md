@@ -865,7 +865,7 @@ Enhance the Flask dashboard with a modern UI, grid layout, and dynamic progress 
 pip install flask psutil
 
 # Launch dashboard
-python3 run_dashboard.py
+python3 app.py
 
 # Connect to Bandit Level 1
 ssh bandit1@bandit.labs.overthewire.org -p 2220
@@ -915,7 +915,7 @@ Add dynamic line charts for CPU and memory usage using Chart.js to visualize liv
 
 ```
 # Execute local test server
-python3 run_dashboard.py
+python3 app.py
 
 # OverTheWire Level 2 execution
 ssh bandit2@bandit.labs.overthewire.org -p 2220
@@ -961,7 +961,7 @@ Extend the Flask dashboard to monitor storage partition utilization and active I
 
 ```
 # Execute local test server
-python3 run_dashboard.py
+python3 app.py
 
 # OverTheWire Level 3 execution
 ssh bandit3@bandit.labs.overthewire.org -p 2220
@@ -1005,7 +1005,7 @@ Extend the Flask telemetry dashboard with a live Top CPU Processes monitor to im
 
 ```bash
 # Start dashboard
-python3 run_dashboard.py
+python3 app.py
 ```
 
 ### Reflection
@@ -1020,4 +1020,42 @@ Bandit Level 4 reinforced another essential Linux administration concept: filena
 
 - `feat: add top processes view`
 - `docs(ctf): add bandit level 4 writeup`
+
 ---
+## [2026-07-15] – Day 34: Threshold Alerts & Frontend Debugging
+
+### Goal
+
+Enhance the telemetry dashboard with threshold-based alert notifications and investigate a frontend JavaScript issue that prevented live dashboard updates. Continue progressing through the OverTheWire Bandit challenges.
+
+### Tasks Completed
+
+- Added threshold-based alert generation for CPU, memory, and disk utilization.
+- Implemented visual alert banners with different styling for warning and critical conditions.
+- Added a **Silence Alerts** button that temporarily suppresses notifications using the browser's `sessionStorage`.
+- Improved the dashboard interface by adding a favicon and a footer displaying the last refresh timestamp.
+- Investigated a frontend JavaScript failure that stopped telemetry updates.
+- Identified the issue as a stale DOM reference (`last-update`) left behind after a previous UI refactor.
+- Removed the obsolete DOM lookup and confirmed the dashboard resumed normal operation.
+- Completed **OverTheWire Bandit Level 11**.
+- Continued documenting completed Bandit levels in the CTF write-up repository.
+
+### Commands Used
+
+```bash
+# Start dashboard
+python3 app.py
+```
+
+### Reflection
+
+Today's work highlighted that observability is not limited to backend code—frontend reliability is equally important. A single outdated DOM reference caused the JavaScript execution to stop, preventing the dashboard from updating despite the backend API functioning correctly. Using the browser developer tools made it straightforward to locate the `TypeError` and trace it back to the obsolete element reference.
+
+The alert system also makes the dashboard significantly more practical by notifying the user when monitored resources exceed predefined thresholds instead of requiring constant manual observation. 
+
+### Evidence
+
+**Commits:**
+
+- `feat: add threshold alerts to dashboard`
+- `docs(ctf): add bandit level 11 writeup`
