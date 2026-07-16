@@ -1059,3 +1059,31 @@ The alert system also makes the dashboard significantly more practical by notify
 
 - `feat: add threshold alerts to dashboard`
 - `docs(ctf): add bandit level 11 writeup`
+
+
+---
+## [2026-07-16] – Day 35: Dashboard Polish, Final Review & Bandit Level 12
+
+### Goal
+Finalise the system dashboard, update repository documentation, perform a comprehensive code review, and complete OverTheWire Bandit Level 12.
+
+### Tasks Completed
+- Updated `README.md` with a dedicated "System Dashboard" section detailing features, installation, usage, and API endpoints.
+- Captured a clean, safe screenshot of the dashboard showcasing the active threshold alert banner, Chart.js telemetry, and hardware metrics, saved to `docs/images/dashboard_1/2/3.png`.
+- Conducted a final code review of `app.py`. Verified that all Flask routes (`/`, `/api/stats`, `/api/processes`) and helper functions contain standard Python docstrings.
+- Completed OverTheWire Bandit Level 12, demonstrating the ability to reverse hexdumps (`xxd -r`) and iteratively unpack nested compression archives (`gzip`, `bzip2`, `tar`) to recover a hidden flag.
+
+### Dashboard Architecture Recap
+The dashboard transforms the initial CLI system inventory script into a full‑fledged observability platform. It proves my ability to build modular full‑stack applications:
+- **Backend:** Python / Flask exposing a dual-endpoint REST API.
+- **System Integration:** `psutil` for deep OS-level metric extraction (Processes, Network, Storage, CPU).
+- **Frontend:** Vanilla JavaScript (Fetch API) combined with Chart.js for asynchronous, non-blocking DOM rendering.
+
+### Next Steps
+- Move to a new repository for Week 6 focusing on network manipulation.
+- Continue offensive security CTF challenges (Bandit Level 13+).
+
+### Evidence
+- **Commits:**
+  - `docs(ctf): add bandit level 12 writeup`
+---
