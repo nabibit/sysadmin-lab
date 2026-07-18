@@ -1,4 +1,10 @@
 # sysadmin-lab
+![Status](https://img.shields.io/badge/Status-Completed-brightgreen)
+![Linux](https://img.shields.io/badge/Linux-Ubuntu_22.04-orange)
+![Python](https://img.shields.io/badge/Python-3.8+-blue)
+![Flask](https://img.shields.io/badge/Flask-Web_Dashboard-brightgreen)
+![psutil](https://img.shields.io/badge/psutil-System_Monitoring-purple)
+![License](https://img.shields.io/badge/License-MIT-orange)
 
 A hands‑on practice repository for system administration fundamentals, focusing on Linux and Windows internals, process management, resource monitoring, and OS‑level debugging. This lab accompanies my self‑study in preparation for security and operations roles.
 
